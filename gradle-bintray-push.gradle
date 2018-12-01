@@ -1,0 +1,124 @@
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+
+group = PROJECT_PACKAGE_NAME
+version = PROJECT_VERSION_NAME
+
+install {
+    repositories.mavenInstaller {
+        pom.groupId = PROJECT_PACKAGE_NAME
+        pom.artifactId = PROJECT_NAME
+        pom.version = PROJECT_VERSION_NAME
+
+        pom.project {
+            name PROJECT_NAME
+            description PROJECT_DESCRIPTION
+            url PROJECT_SITE
+            packaging 'aar'
+
+            scm {
+                url POM_SCM_URL
+                connection POM_SCM_CONNECTION
+                developerConnection POM_SCM_DEVELOPER_CONNECTION
+            }
+
+            licenses {
+                license {
+                    name PROJECT_LICENCE_NAME
+                    url PROJECT_LICENCE_URL
+                }
+            }
+
+            developers {
+                developer {
+                    id DEVELOPER_NAME
+                    name DEVELOPER_NAME
+                    email DELELOPER_EMAIL
+                }
+            }
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+javadoc {
+    options{
+        encoding "UTF-8"
+        charSet 'UTF-8'
+        author true
+        version true
+        links "http://docs.oracle.com/javase/7/docs/api"
+        title "lightframeview"
+    }
+}
+
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+artifacts {
+    if (project.getPlugins().hasPlugin('com.android.application')
+            || project.getPlugins().hasPlugin('com.android.library')) {
+        archives sourcesJar
+        archives javadocJar
+    } else {
+
+    }
+}
+
+Properties properties = new Properties()
+boolean isHasFile = false
+if (project.rootProject.findProject('local.properties') != null){
+    isHasFile = true
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+}
+
+bintray {
+    user =  isHasFile ? properties.getProperty('BINTRAY_USER'): System.getenv("bintray.user") // System.getenv for Travis CI
+    key =  isHasFile ? properties.getProperty('BINTRAY_API_KEY'): System.getenv("bintray.apikey") // System.getenv for Travis CI
+    configurations = ['archives']
+
+    pkg {
+        userOrg = properties.getProperty('BINTRAY_USER_ORG')
+        repo = BINTRAY_REPO
+        name = PROJECT_NAME
+        desc = PROJECT_DESCRIPTION
+        websiteUrl = PROJECT_SITE
+        vcsUrl = PROJECT_GIT_URL
+        issueTrackerUrl = PROJECT_ISSUE_URL
+        licenses = project.property('PROJECT_LICENCE_NAME').split(',') // https://github.com/bintray/gradle-bintray-plugin/issues/98
+        labels = project.property('BINTRAY_LABELS').split(',')
+        publish = true
+        publicDownloadNumbers = true
+
+        version {
+            name = PROJECT_VERSION_NAME
+            desc = PROJECT_VERSION_DESC
+            released = new Date()
+            vcsTag = BINTRAY_VCS_TAG
+            gpg {
+                sign = true //Determines whether to GPG sign the files. The default is false
+                passphrase = properties.getProperty('BINTRAY_GPG_PASSPHRASE')
+                //Optional. The passphrase for GPG signing'
+            }
+        }
+    }
+}
